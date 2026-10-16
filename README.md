@@ -2,6 +2,14 @@
 
 XGTX is a native RandomX proof-of-work blockchain derived from Monero. This repository is the public release and setup entry point for the native chain; it is separate from earlier Solana tokens using the same name.
 
+## Start here
+
+1. **Mine XGTX:** [download the Ubuntu 24.04 x86_64 native release](https://github.com/xXGAME-TIMEXx/XGTX/releases/tag/v0.18.1.0-xgtx-p16), then follow the mining setup below.
+2. **Use the experimental local wallet interface:** [download the guided setup edition](https://github.com/xXGAME-TIMEXx/XGTX/releases/tag/wallet-ui-20261016-setup) and follow its included README.
+3. **Report installation problems:** [open an issue](https://github.com/xXGAME-TIMEXx/XGTX/issues). Include your OS version, release tag and error message. Never include wallet files, recovery words, passwords or session links.
+
+The native binary release requires Ubuntu 24.04 runtime libraries. It is not a universal Linux binary or a Windows installer; Ubuntu 26.04 is not a supported runtime for this package.
+
 ## Release status
 
 **The initial Ubuntu 24.04 x86_64 public mining pre-release is published.** Download `runtime.tar.gz`, `source.tar.gz` and `SHA256SUMS` together from [v0.18.1.0-xgtx-p16](https://github.com/xXGAME-TIMEXx/XGTX/releases/tag/v0.18.1.0-xgtx-p16). Do not use GitHub's automatically generated source ZIP as a substitute for the complete release source archive.
@@ -10,6 +18,7 @@ Verified on the operator's mainnet on October 16, 2026 UTC:
 
 - The upgraded Ubuntu 24.04 server and a separate laptop node synchronize over public P2P and relay mined blocks.
 - Protocol 16 activated at native block index 700 (block count 701).
+- A fresh Ubuntu 24.04 container using the actual GitHub downloads synchronized from genesis to block count 1403 and reconstructed the live reserve state: 98.9877872 XGTX and 17 reserve outputs, with matching native and exchange tips. This was an operator-run clean installation check, not an independent user's test.
 - A real wallet-funded reserve deposit was confirmed. A subsequent 1 XGTX ledger withdrawal was confirmed in block 1346, returning exactly 0.9968414 XGTX to the wallet after its 0.0031586 XGTX native mining fee.
 - Native/token AMM, liquidity and swap operations have passed offline integration tests. A live mainnet pool and swap have not yet been validated. No project-funded trading pool has been established.
 
@@ -73,6 +82,25 @@ stop_mining
 ```
 
 Keep the node running and the computer awake while mining. Rewards and other received outputs must mature before they are spendable. Hash rate, network difficulty and competition determine block discovery; rewards are not scheduled payments to each miner.
+
+## Experimental local wallet interface
+
+Download `xgtx-local-wallet-ui-20261016-setup.tar.gz` and its `SHA256SUMS` from the [guided setup release](https://github.com/xXGAME-TIMEXx/XGTX/releases/tag/wallet-ui-20261016-setup). Keep these in a separate folder from the native release checksums.
+
+Verify the archive, extract it and follow its README:
+
+```bash
+sha256sum -c SHA256SUMS
+tar -xzf xgtx-local-wallet-ui-20261016-setup.tar.gz
+cd xgtx-local-wallet-ui
+sha256sum -c SHA256SUMS
+```
+
+The interface requires Python 3, Requests and the matching native binaries. Its setup helper generates private RPC credentials, matching configuration files and separate launch scripts for a local node, wallet RPC and browser interface. It uses its own node database and ports; it does not automatically start mining or submit transactions.
+
+Create or open your own wallet and keep its recovery words private. Close any other application using that wallet before starting wallet RPC. Run the setup as your ordinary user. Keep the application in a permanent location because generated launch scripts reference it.
+
+The interface is experimental. Native deposits require an existing reserve bootstrap. Live pool creation and swaps remain unverified. The published package contains no user's wallet or RPC credentials.
 
 ## Native tokens, pairing and disclosed fees
 
