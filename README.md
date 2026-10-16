@@ -4,7 +4,7 @@ XGTX is a native RandomX proof-of-work blockchain derived from Monero. This repo
 
 ## Release status
 
-**Initial public release preparation is in progress. Download assets have not yet been published.** Use the [Releases page](https://github.com/xXGAME-TIMEXx/XGTX/releases) when the runtime archive, corresponding source archive and SHA256SUMS are available together. Do not use GitHub's automatically generated source ZIP as a substitute for the complete release source archive.
+**The initial Ubuntu 24.04 x86_64 public mining pre-release is published.** Download `runtime.tar.gz`, `source.tar.gz` and `SHA256SUMS` together from [v0.18.1.0-xgtx-p16](https://github.com/xXGAME-TIMEXx/XGTX/releases/tag/v0.18.1.0-xgtx-p16). Do not use GitHub's automatically generated source ZIP as a substitute for the complete release source archive.
 
 Verified on the operator's mainnet on October 16, 2026 UTC:
 
@@ -34,7 +34,7 @@ The chain includes a founder allocation of 5,000,000 XGTX at genesis. Mining doe
 
 The first binary package targets **Ubuntu 24.04 x86_64** with listed system runtime dependencies. A native Windows installer is not part of this release. The operator also runs an integration build in WSL; that does not establish support for arbitrary Windows or Linux versions.
 
-Once release assets are published, download `runtime.tar.gz`, `source.tar.gz` and `SHA256SUMS` from the same release into a new directory. Verify both archives before extracting or running them:
+Download `runtime.tar.gz`, `source.tar.gz` and `SHA256SUMS` from the same release into a new directory. Verify both archives before extracting or running them:
 
 ```bash
 sha256sum -c SHA256SUMS
