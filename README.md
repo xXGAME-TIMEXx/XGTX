@@ -4,7 +4,7 @@ XGTX is a native RandomX proof-of-work blockchain derived from Monero. This repo
 
 ## Release status
 
-**Initial public release preparation is in progress. Download assets have not yet been published.** Use the [Releases page](https://github.com/morgandyllon/XGTX/releases) when the runtime archive, corresponding source archive and SHA256SUMS are available together. Do not use GitHub's automatically generated source ZIP as a substitute for the complete release source archive.
+**Initial public release preparation is in progress. Download assets have not yet been published.** Use the [Releases page](https://github.com/xXGAME-TIMEXx/XGTX/releases) when the runtime archive, corresponding source archive and SHA256SUMS are available together. Do not use GitHub's automatically generated source ZIP as a substitute for the complete release source archive.
 
 Verified on the operator's mainnet on October 16, 2026 UTC:
 
