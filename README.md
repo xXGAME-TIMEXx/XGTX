@@ -2,6 +2,12 @@
 
 XGTX is a native RandomX proof-of-work blockchain derived from Monero. This repository is the public release and setup entry point for the native chain; it is separate from earlier Solana tokens using the same name.
 
+## Public beta — open to miners and early users
+
+XGTX is open for public participation as of October 16, 2026. Download the native software to run a node, mine XGTX, or try the experimental local wallet interface. Development continues during this public beta; report problems through GitHub Issues.
+
+**Start with Ubuntu 24.04 x86_64.** Each participant runs their own wallet locally and controls their recovery words. Mining does not require a purchase. There is no established dollar price, external-chain bridge, or guaranteed income.
+
 ## Start here
 
 1. **Mine XGTX:** [download the Ubuntu 24.04 x86_64 native release](https://github.com/xXGAME-TIMEXx/XGTX/releases/tag/v0.18.1.0-xgtx-p16), then follow the mining setup below.
@@ -20,7 +26,8 @@ Verified on the operator's mainnet on October 16, 2026 UTC:
 - Protocol 16 activated at native block index 700 (block count 701).
 - A fresh Ubuntu 24.04 container using the actual GitHub downloads synchronized from genesis to block count 1403 and reconstructed the live reserve state: 98.9877872 XGTX and 17 reserve outputs, with matching native and exchange tips. This was an operator-run clean installation check, not an independent user's test.
 - A real wallet-funded reserve deposit was confirmed. A subsequent 1 XGTX ledger withdrawal was confirmed in block 1346, returning exactly 0.9968414 XGTX to the wallet after its 0.0031586 XGTX native mining fee.
-- Native/token AMM, liquidity and swap operations have passed offline integration tests. A live mainnet pool and swap have not yet been validated. No project-funded trading pool has been established.
+- Native/token AMM, liquidity and swap operations have passed offline integration tests. During the operator's October 16 live mainnet session, GTTK was created with 6 decimals and an initial supply of 1,000,000 tokens. An operator-funded pool was created with 10 XGTX and 100,000 GTTK, followed by a buy and a sell observed in the local wallet interface. These were operator-run functional tests, not independent user validation or evidence of outside trading demand.
+- The pool creation transaction `32b5d25de9dee8d0ecb9242ec7ad6b306eec19c14d865c694721d13bed986f77` was confirmed at native block index 1431. GTTK asset ID: `25595ec5c662ee6065ea5eb7233fc16fd5d4d12727eca3c580892e295f6ecd2a`. Pool reserves change with trades; the initial amounts are not a current quote or dollar valuation.
 
 These are functional checks, not an independent security audit. This is an early network with limited peers and mining participation. There is no established dollar price or guaranteed mining or fee income.
 
@@ -100,7 +107,7 @@ The interface requires Python 3, Requests and the matching native binaries. Its 
 
 Create or open your own wallet and keep its recovery words private. Close any other application using that wallet before starting wallet RPC. Run the setup as your ordinary user. Keep the application in a permanent location because generated launch scripts reference it.
 
-The interface is experimental. Native deposits require an existing reserve bootstrap. Live pool creation and swaps remain unverified. The published package contains no user's wallet or RPC credentials.
+The interface is experimental. Native deposits require an existing reserve bootstrap. Operator-run live pool creation, buying and selling have been exercised as described above; independent user validation remains pending. Older README files inside the existing downloads predate these tests. The published package contains no user's wallet or RPC credentials.
 
 ## Native tokens, pairing and disclosed fees
 
