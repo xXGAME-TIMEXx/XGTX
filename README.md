@@ -10,6 +10,8 @@ XGTX is open for public participation as of October 16, 2026. Download the nativ
 
 ## Start here
 
+**Public block explorer:** http://5.78.219.248/ — browse recent blocks and look up native block heights, block hashes and transaction hashes. This read-only beta reflects one node’s chain view. It currently uses HTTP; do not enter wallet credentials or recovery words. Hidden transfer amounts and wallet balances are not exposed by the explorer.
+
 1. **Mine XGTX:** [download the Ubuntu 24.04 x86_64 native release](https://github.com/xXGAME-TIMEXx/XGTX/releases/tag/v0.18.1.0-xgtx-p16), then follow the mining setup below.
 2. **Use the experimental local wallet interface:** [download the guided setup edition](https://github.com/xXGAME-TIMEXx/XGTX/releases/tag/wallet-ui-20261016-setup) and follow its included README.
 3. **Report installation problems:** [open an issue](https://github.com/xXGAME-TIMEXx/XGTX/issues). Include your OS version, release tag and error message. Never include wallet files, recovery words, passwords or session links.
