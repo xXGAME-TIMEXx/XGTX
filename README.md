@@ -1,3 +1,7 @@
+![XGTX public beta banner](assets/xgtx-banner.png)
+
+<p align="center"><img src="assets/xgtx-logo.png" width="120" alt="XGTX logo"></p>
+
 # xXGAME-TIMEXx (XGTX)
 
 XGTX is a native RandomX proof-of-work blockchain derived from Monero. This repository is the public release and setup entry point for the native chain; it is separate from earlier Solana tokens using the same name.
@@ -9,6 +13,8 @@ XGTX is open for public participation as of October 16, 2026. Download the nativ
 **Start with Ubuntu 24.04 x86_64.** Each participant runs their own wallet locally and controls their recovery words. Mining does not require a purchase. There is no established dollar price, external-chain bridge, or guaranteed income.
 
 ## Start here
+
+**Project updates on X:** [@XGTXchain](https://x.com/XGTXchain)
 
 **Windows users:** follow the [Windows / WSL 2 setup guide](WINDOWS-WSL.md) for Ubuntu 24.04, verified public downloads, a new local wallet, and desktop shortcuts. This is a Linux application running through WSL, not a native Windows installer.
 
