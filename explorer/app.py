@@ -7,7 +7,7 @@ from html import escape
 from urllib.parse import urlencode
 
 import requests
-from flask import Flask, abort, redirect, request
+from flask import Flask, abort, redirect, request, send_from_directory
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 1024
@@ -78,22 +78,34 @@ def page(title, body, status=200):
             'a{color:#6ee7b7}input,button{font:inherit;padding:10px;margin:4px 0;max-width:100%;box-sizing:border-box}'
             'input{width:75%}table{border-collapse:collapse;width:100%}td,th{padding:12px 8px;text-align:left;border-bottom:1px solid #374151}'
             'td{overflow-wrap:anywhere}main{overflow-x:auto}code{overflow-wrap:anywhere}.note{color:#a7b0c2}li{margin:12px 0}'
-            '</style><header><h1><a href="/">XGTX Explorer</a></h1><p>Public beta · Native mainnet</p>'
+            '.banner{display:block;width:100%;height:auto;border-radius:12px}.brand{display:flex;align-items:center;gap:16px;margin-top:20px}'
+            '.logo{width:64px;height:64px;border-radius:50%}.brand h1{font-size:clamp(22px,5vw,32px);margin:0}'
+            '</style><header><img class="banner" src="/assets/xgtx-banner.png" alt="XGTX — native blockchain, RandomX proof of work, public beta">'
+            '<div class="brand"><img class="logo" src="/assets/xgtx-logo.png" width="64" height="64" alt="XGTX logo">'
+            '<h1><a href="/">XGTX Explorer</a></h1></div><p>Public beta · Native mainnet</p>'
             '<form action="/search" method="get"><input name="q" maxlength="64" required aria-label="Block height, block hash or transaction hash" '
             'placeholder="Block height, block hash or transaction hash"><button>Search</button></form></header>'
             '<main><h2>' + e(title) + '</h2>' + body + '</main><footer><p class="note">'
             'Data reflects this node’s view of the chain. Confirmation counts can change during reorganizations. '
             'This explorer does not reveal hidden transfer amounts, recipients or wallet balances.</p>'
-            '<a href="https://github.com/xXGAME-TIMEXx/XGTX">Downloads and project information</a></footer></html>', status)
+            '<a href="https://github.com/xXGAME-TIMEXx/XGTX">Downloads and project information</a> · '
+            '<a href="https://x.com/XGTXchain">Project updates on X</a></footer></html>', status)
 
 
 @app.after_request
 def headers(response):
-    response.headers['Content-Security-Policy'] = "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+    response.headers['Content-Security-Policy'] = "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['Referrer-Policy'] = 'no-referrer'
     response.headers['Cache-Control'] = 'no-store'
     return response
+
+
+@app.get('/assets/<name>')
+def brand_asset(name):
+    if name not in ('xgtx-logo.png', 'xgtx-banner.png'):
+        abort(404)
+    return send_from_directory(app.root_path + '/assets', name)
 
 
 @app.errorhandler(requests.RequestException)
