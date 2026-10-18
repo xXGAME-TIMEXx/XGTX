@@ -10,6 +10,8 @@ XGTX is open for public participation as of October 16, 2026. Download the nativ
 
 ## Start here
 
+**Windows users:** follow the [Windows / WSL 2 setup guide](WINDOWS-WSL.md) for Ubuntu 24.04, verified public downloads, a new local wallet, and desktop shortcuts. This is a Linux application running through WSL, not a native Windows installer.
+
 **Public block explorer:** http://5.78.219.248/ — browse recent blocks and look up native block heights, block hashes and transaction hashes. This read-only beta reflects one node’s chain view. It currently uses HTTP; do not enter wallet credentials or recovery words. Hidden transfer amounts and wallet balances are not exposed by the explorer.
 
 1. **Mine XGTX:** [download the Ubuntu 24.04 x86_64 native release](https://github.com/xXGAME-TIMEXx/XGTX/releases/tag/v0.18.1.0-xgtx-p16), then follow the mining setup below.
@@ -31,6 +33,8 @@ Verified on the operator's mainnet on October 16, 2026 UTC:
 - Native/token AMM, liquidity and swap operations have passed offline integration tests. During the operator's October 16 live mainnet session, GTTK was created with 6 decimals and an initial supply of 1,000,000 tokens. An operator-funded pool was created with 10 XGTX and 100,000 GTTK, followed by a buy and a sell observed in the local wallet interface. These were operator-run functional tests, not independent user validation or evidence of outside trading demand.
 - The pool creation transaction `32b5d25de9dee8d0ecb9242ec7ad6b306eec19c14d865c694721d13bed986f77` was confirmed at native block index 1431. GTTK asset ID: `25595ec5c662ee6065ea5eb7233fc16fd5d4d12727eca3c580892e295f6ecd2a`. Pool reserves change with trades; the initial amounts are not a current quote or dollar valuation.
 
+On October 17, 2026, the operator also verified a fresh Windows/WSL 2 Ubuntu 24.04 installation using the actual public downloads: checksum checks, new offline wallet creation, genesis synchronization, a connected unfunded wallet interface, and restart through three desktop shortcuts. No transfer, swap or mining test was performed through that new wallet during this installation check. Independent user validation remains pending.
+
 These are functional checks, not an independent security audit. This is an early network with limited peers and mining participation. There is no established dollar price or guaranteed mining or fee income.
 
 ## Network identity
@@ -50,7 +54,7 @@ The chain includes a founder allocation of 5,000,000 XGTX at genesis. Mining doe
 
 ## Ubuntu 24.04 x86_64 mining setup
 
-The first binary package targets **Ubuntu 24.04 x86_64** with listed system runtime dependencies. A native Windows installer is not part of this release. The operator also runs an integration build in WSL; that does not establish support for arbitrary Windows or Linux versions.
+The first binary package targets **Ubuntu 24.04 x86_64** with listed system runtime dependencies. A native Windows installer is not part of this release. The public runtime and guided interface were also tested in a fresh Ubuntu 24.04 WSL 2 installation on the operator's Windows laptop; see the [Windows / WSL guide](WINDOWS-WSL.md). This does not establish support for arbitrary Windows or Linux versions.
 
 Download `runtime.tar.gz`, `source.tar.gz` and `SHA256SUMS` from the same release into a new directory. Verify both archives before extracting or running them:
 
