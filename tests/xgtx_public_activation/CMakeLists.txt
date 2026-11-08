@@ -1,0 +1,6 @@
+if(XGTX_PUBLIC_EXCHANGE_CANDIDATE)
+  monero_add_minimal_executable(xgtx_public_activation_tests test_boundary.cpp)
+  target_compile_features(xgtx_public_activation_tests PRIVATE cxx_std_17)
+  target_link_libraries(xgtx_public_activation_tests PRIVATE blockchain_db hardforks ${EXTRA_LIBRARIES})
+  add_test(NAME xgtx_public_activation COMMAND xgtx_public_activation_tests)
+endif()

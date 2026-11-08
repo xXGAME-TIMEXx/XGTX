@@ -1,0 +1,4 @@
+monero_add_minimal_executable(xgtx_native_mempool_tests test_native_mempool.cpp)
+target_compile_features(xgtx_native_mempool_tests PRIVATE cxx_std_17)
+target_link_libraries(xgtx_native_mempool_tests PRIVATE cryptonote_core ${EXTRA_LIBRARIES})
+add_test(NAME xgtx_native_mempool COMMAND xgtx_native_mempool_tests)

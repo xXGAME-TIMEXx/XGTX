@@ -1,0 +1,4 @@
+monero_add_minimal_executable(xgtx_projection_migration_tests test_native_migration.cpp)
+target_compile_features(xgtx_projection_migration_tests PRIVATE cxx_std_17)
+target_link_libraries(xgtx_projection_migration_tests PRIVATE blockchain_db ${EXTRA_LIBRARIES})
+add_test(NAME xgtx_projection_migration COMMAND xgtx_projection_migration_tests)

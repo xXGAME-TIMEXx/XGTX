@@ -1,0 +1,109 @@
+{
+  "purpose": "Input for a future release build; NOT source proven to match existing candidate binaries",
+  "snapshot_name": "xgtx-source-future-build-20261107",
+  "prepared_date": "2026-11-07",
+  "git_commit": null,
+  "git_evidence": "No usable Git metadata. Existing build configuration reported unknown commit and 0.18.1.0-unknown.",
+  "upstream_archive": {
+    "filename": null,
+    "sha256": null,
+    "status": "unavailable; original reviewed source archive was not found and no independently verified archive hash was supplied",
+    "warning": "Baseline manifest digest below is not an upstream archive digest."
+  },
+  "supplied_baseline_manifest": {
+    "path": "source-manifest.json",
+    "sha256": "3b6f05f652e17c9a34c654a41155af2fafb59edbd8ecc6742e95ab72077597c4",
+    "entries": 11766,
+    "status": "Original supplied reviewed-input baseline, retained unchanged; not publisher authenticated"
+  },
+  "local_source_changes": [
+    {
+      "path": "README.md",
+      "classification": "modified since supplied baseline manifest",
+      "baseline_sha256": "8de10b2e534857de1bba6297afa9e1539cdb7cec0c6104bf9bb9cf304235c4b2",
+      "snapshot_sha256": "69c14c6f2e489218ecebcbfd2f5a1e09e6fd7b6f37b7164bb9a2c52f986c1f67"
+    },
+    {
+      "path": "BUILD-UBUNTU24.md",
+      "classification": "not listed in supplied baseline; addition date cannot be inferred from manifest",
+      "sha256": "34c23de462ee5d6675c606f168fc6ec3f8207005e066863e78de123ae12d5bf8"
+    },
+    {
+      "path": "INSTALL-UBUNTU24.md",
+      "classification": "not listed in supplied baseline; addition date cannot be inferred from manifest",
+      "sha256": "33808b34b9416eb5068dfd66a6d43f1b22498ecdb240d154f60b2dc799bb98b2"
+    },
+    {
+      "path": "CANDIDATE-NOTES.txt",
+      "classification": "not listed in supplied baseline; addition date cannot be inferred from manifest",
+      "sha256": "e508a21dc6cf9e893db04a1b81b6b697571a85ba781edb5d7a6e1f5c359d82c1"
+    },
+    {
+      "path": "build_ubuntu24.py",
+      "classification": "not listed in supplied baseline; addition date cannot be inferred from manifest",
+      "sha256": "03b244d1edd64f96230291fa7eb192aa603a1b5924c63835ef25101e106f622c"
+    },
+    {
+      "path": "source-manifest.json",
+      "classification": "not listed in supplied baseline; addition date cannot be inferred from manifest",
+      "sha256": "3b6f05f652e17c9a34c654a41155af2fafb59edbd8ecc6742e95ab72077597c4"
+    }
+  ],
+  "selected_baseline_files_matching": 2469,
+  "selection": {
+    "included_source_roots": [
+      "src",
+      "cmake",
+      "external",
+      "contrib",
+      "tests (without tests/data)",
+      "utils",
+      "xgtx-trader"
+    ],
+    "root_files": "Explicit source/build/docs scripts recorded in selection.json",
+    "excluded_paths": [
+      "contrib/depends/built",
+      "contrib/depends/sources",
+      "contrib/depends/work",
+      "contrib/depends/x86_64-w64-mingw32",
+      "tests/data",
+      "tests/unit_tests/block_reward.cpp.backup",
+      "tests/xgtx_exchange/test-results.txt"
+    ],
+    "also_excluded": "All build outputs and caches; .git/.aws/.codex/.agents; user data outside selected roots; backup/log/object files. No tests/data wallet or chain fixtures were copied."
+  },
+  "cargo": {
+    "lock_sha256": "6b3ff4ed441a9933a1e6bc624c25d259135b6f82e2d7d2ad2c57a7c89ccf453a",
+    "vendor_packages": 67,
+    "toolchain_used_to_vendor": "rustc/Cargo 1.99.1 via installed stable alias",
+    "source": "Copied dependency cache from previous local build; cargo vendor --locked --offline --versioned-dirs; no network used",
+    "source_replacement_config": ".cargo/config.toml (root source replacement config, not a cache)",
+    "fixture_pruning": "Upstream tests/examples/benches and .envrc/CI folders removed from vendor packages; retained file hashes checked against Cargo vendor manifests; checksum file lists updated only to omit deleted files. Package checksum fields retained. See vendor-pruned-paths.json.",
+    "validation": "cargo metadata --offline --locked with an empty Cargo home succeeded; no compilation performed"
+  },
+  "required_build_data": "src/blocks/checkpoints.dat contains source checkpoint constants; src/blocks/testnet_blocks.dat and stagenet_blocks.dat are zero-byte source placeholders required by CMake. These are not an operational chain database.",
+  "preserved_candidate": {
+    "path": "build/ubuntu24-four-binaries-20261106/xgtx-ubuntu24-x86_64-candidate.tar.gz",
+    "sha256": "aeecf9bec857fa14d98059b3f47ba411d85666e083d4e90ada81a7f9d197569e",
+    "relationship": "Preserved independently; no claim that this new snapshot produced it"
+  },
+  "validation_limits": [
+    "Snapshot has not been compiled",
+    "Ubuntu system packages and Rust toolchain are not bundled",
+    "Fresh Ubuntu dependency install remains unverified",
+    "Byte-for-byte build reproducibility remains unverified",
+    "tests/data omitted, so full native fixture tests need a separately reviewed fixture set",
+    "Public exchange activation remains OFF in build recipe"
+  ],
+  "verified_session_changes": {
+    "README.md": "Added pointer to Ubuntu build guide; historical instructions retained",
+    "BUILD-UBUNTU24.md": "New build guide added during local preparation",
+    "INSTALL-UBUNTU24.md": "New installation draft added during local preparation",
+    "build_ubuntu24.py": "New local four-binary build/package entry point; local Cargo cache, offline mode, archive member verification",
+    "snapshot_only_changes": [
+      "Vendored locked Cargo dependencies and root source-replacement config",
+      "Excluded generated files, caches and data fixtures",
+      "Added snapshot build recipe, provenance and manifests"
+    ]
+  }
+}

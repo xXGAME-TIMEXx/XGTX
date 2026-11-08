@@ -1,0 +1,4 @@
+monero_add_minimal_executable(xgtx_reserve_storage_tests test_reserve_storage.cpp)
+target_compile_features(xgtx_reserve_storage_tests PRIVATE cxx_std_17)
+target_link_libraries(xgtx_reserve_storage_tests PRIVATE blockchain_db ${EXTRA_LIBRARIES})
+add_test(NAME xgtx_reserve_storage COMMAND xgtx_reserve_storage_tests)

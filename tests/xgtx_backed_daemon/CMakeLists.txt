@@ -1,0 +1,3 @@
+monero_add_minimal_executable(xgtx_bridge_builder bridge_builder.cpp)
+target_compile_features(xgtx_bridge_builder PRIVATE cxx_std_17)
+target_link_libraries(xgtx_bridge_builder PRIVATE cryptonote_core ${EXTRA_LIBRARIES})

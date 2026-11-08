@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.16)
+project(xgtx_token_format_tests LANGUAGES CXX)
+enable_testing()
+add_executable(xgtx_token_format_tests test_token_format.cpp)
+target_compile_features(xgtx_token_format_tests PRIVATE cxx_std_17)
+target_compile_options(xgtx_token_format_tests PRIVATE -Wall -Wextra -Werror)
+add_test(NAME xgtx_token_format COMMAND xgtx_token_format_tests)

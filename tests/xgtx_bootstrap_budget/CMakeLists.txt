@@ -1,0 +1,3 @@
+monero_add_minimal_executable(xgtx_bootstrap_budget_tests test_budget.cpp)
+target_compile_features(xgtx_bootstrap_budget_tests PRIVATE cxx_std_17)
+add_test(NAME xgtx_bootstrap_budget COMMAND xgtx_bootstrap_budget_tests)

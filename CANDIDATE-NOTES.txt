@@ -1,0 +1,7 @@
+XGTX reviewed candidate, Ubuntu 24.04 x86_64. NOT an approved production release.
+Dynamic binaries: required shared libraries must be installed on the target.
+See dependencies.json and the captured package inventory.
+No chain data, private wallets, signing credentials or historical approval reports included.
+The included legacy release builder is not currently runnable without its historical inputs.
+Full inherited RPC integration, baseline CPU verification, fresh source rebuild verification,
+mainnet replay and coordinated deployment remain separate work.

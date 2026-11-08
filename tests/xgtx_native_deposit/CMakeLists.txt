@@ -1,0 +1,4 @@
+monero_add_minimal_executable(xgtx_native_deposit_tests test_native_deposit.cpp)
+target_compile_features(xgtx_native_deposit_tests PRIVATE cxx_std_17)
+target_link_libraries(xgtx_native_deposit_tests PRIVATE cryptonote_core ${EXTRA_LIBRARIES})
+add_test(NAME xgtx_native_deposit COMMAND xgtx_native_deposit_tests)

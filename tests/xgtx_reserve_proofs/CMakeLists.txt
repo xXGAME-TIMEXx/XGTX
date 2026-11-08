@@ -1,0 +1,5 @@
+monero_add_minimal_executable(xgtx_reserve_proofs_tests test_reserve_proofs.cpp)
+target_include_directories(xgtx_reserve_proofs_tests PRIVATE "${PROJECT_SOURCE_DIR}/external/db_drivers/liblmdb")
+target_compile_features(xgtx_reserve_proofs_tests PRIVATE cxx_std_17)
+target_link_libraries(xgtx_reserve_proofs_tests PRIVATE cryptonote_core ${EXTRA_LIBRARIES})
+add_test(NAME xgtx_reserve_proofs COMMAND xgtx_reserve_proofs_tests)

@@ -1,0 +1,4 @@
+monero_add_minimal_executable(xgtx_signed_carrier_tests test_signed_carrier.cpp)
+target_compile_features(xgtx_signed_carrier_tests PRIVATE cxx_std_17)
+target_link_libraries(xgtx_signed_carrier_tests PRIVATE cryptonote_core ${EXTRA_LIBRARIES})
+add_test(NAME xgtx_signed_carrier COMMAND xgtx_signed_carrier_tests)

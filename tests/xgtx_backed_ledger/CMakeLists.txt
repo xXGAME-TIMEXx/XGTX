@@ -1,0 +1,5 @@
+monero_add_minimal_executable(xgtx_backed_ledger_tests test_backed_ledger.cpp)
+target_compile_features(xgtx_backed_ledger_tests PRIVATE cxx_std_17)
+target_compile_definitions(xgtx_backed_ledger_tests PRIVATE XGTX_TEST_CRYPTONOTE=1)
+target_link_libraries(xgtx_backed_ledger_tests PRIVATE blockchain_db ${EXTRA_LIBRARIES})
+add_test(NAME xgtx_backed_ledger COMMAND xgtx_backed_ledger_tests)

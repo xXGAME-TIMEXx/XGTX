@@ -1,0 +1,3 @@
+monero_add_minimal_executable(xgtx_projection_inspect projection_inspect.cpp)
+target_compile_features(xgtx_projection_inspect PRIVATE cxx_std_17)
+target_link_libraries(xgtx_projection_inspect PRIVATE blockchain_db ${EXTRA_LIBRARIES})

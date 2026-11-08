@@ -1,0 +1,3 @@
+monero_add_minimal_executable(xgtx_funded_builder funded_builder.cpp)
+target_compile_features(xgtx_funded_builder PRIVATE cxx_std_17)
+target_link_libraries(xgtx_funded_builder PRIVATE cryptonote_core ${EXTRA_LIBRARIES})
