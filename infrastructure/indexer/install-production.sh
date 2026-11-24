@@ -14,7 +14,7 @@ nginx_limit=/etc/nginx/conf.d/xgtx-indexer-limit.conf
 backup_root=/var/backups/xgtx-indexer/$(date -u +%Y%m%dT%H%M%SZ)
 script_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
-for required in xgtx_indexer.py xgtx-indexer.service nginx-location.conf; do
+for required in xgtx_indexer.py xgtx_indexer_maintenance.py xgtx-indexer.service xgtx-indexer-maintenance.service xgtx-indexer-maintenance.timer nginx-location.conf; do
   [[ -f "${script_root}/${required}" ]] || {
     echo "Missing deployment file: ${required}" >&2
     exit 1
@@ -47,8 +47,12 @@ if ! getent passwd xgtx-indexer >/dev/null; then
 fi
 install -d -o root -g root -m 0755 "${install_root}"
 install -d -o xgtx-indexer -g xgtx-indexer -m 0750 "${data_root}"
+install -d -o xgtx-indexer -g xgtx-indexer -m 0750 /var/backups/xgtx-indexer/data
 install -o root -g root -m 0755 "${script_root}/xgtx_indexer.py" "${install_root}/xgtx_indexer.py"
+install -o root -g root -m 0755 "${script_root}/xgtx_indexer_maintenance.py" "${install_root}/xgtx_indexer_maintenance.py"
 install -o root -g root -m 0644 "${script_root}/xgtx-indexer.service" "${service_file}"
+install -o root -g root -m 0644 "${script_root}/xgtx-indexer-maintenance.service" /etc/systemd/system/xgtx-indexer-maintenance.service
+install -o root -g root -m 0644 "${script_root}/xgtx-indexer-maintenance.timer" /etc/systemd/system/xgtx-indexer-maintenance.timer
 install -d -o root -g root -m 0755 /etc/nginx/snippets /etc/nginx/conf.d
 install -o root -g root -m 0644 "${script_root}/nginx-location.conf" "${nginx_snippet}"
 if ! nginx -T 2>&1 | grep -Eq 'limit_req_zone[^;]*zone=api:'; then
@@ -117,6 +121,8 @@ if ! nginx -t; then
   exit 1
 fi
 systemctl reload nginx
+systemctl enable --now xgtx-indexer-maintenance.timer
+systemctl start xgtx-indexer-maintenance.service
 curl --fail --silent --show-error https://xgtxchain.com/indexer/health
 echo
 echo "XGTX indexer deployed successfully. Backup: ${backup_root}"
