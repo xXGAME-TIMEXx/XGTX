@@ -10,7 +10,10 @@ if (-not (Test-Path $key)) {
 
 $files = @(
     "xgtx_indexer.py",
+    "xgtx_indexer_maintenance.py",
     "xgtx-indexer.service",
+    "xgtx-indexer-maintenance.service",
+    "xgtx-indexer-maintenance.timer",
     "nginx-location.conf",
     "install-production.sh"
 )
