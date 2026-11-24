@@ -47,6 +47,12 @@ def validate_state(state: dict) -> dict:
             raise ValueError("invalid ticker")
         decimals = asset.get("decimals")
         atomic(asset.get("supply", ""), decimals)
+        holders = asset.get("holders")
+        if holders is not None and (not isinstance(holders, str) or not holders.isdigit() or int(holders) > 18446744073709551615):
+            raise ValueError("invalid holder count")
+        treasury_balance = asset.get("treasury_balance")
+        if treasury_balance is not None:
+            atomic(treasury_balance, decimals)
         if asset["id"] in known:
             raise ValueError("duplicate asset")
         known.add(asset["id"])
@@ -77,6 +83,7 @@ CREATE TABLE IF NOT EXISTS assets(
   snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
   asset_id TEXT NOT NULL, issuer TEXT NOT NULL, ticker TEXT NOT NULL,
   decimals INTEGER NOT NULL, supply_atomic TEXT NOT NULL,
+  holder_count TEXT, treasury_balance_atomic TEXT,
   PRIMARY KEY(snapshot_id, asset_id)
 );
 CREATE TABLE IF NOT EXISTS pools(
@@ -98,6 +105,11 @@ class Indexer:
         connection = sqlite3.connect(self.database, timeout=15)
         connection.row_factory = sqlite3.Row
         connection.executescript(SCHEMA)
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(assets)")}
+        if "holder_count" not in columns:
+            connection.execute("ALTER TABLE assets ADD COLUMN holder_count TEXT")
+        if "treasury_balance_atomic" not in columns:
+            connection.execute("ALTER TABLE assets ADD COLUMN treasury_balance_atomic TEXT")
         return connection
 
     def record(self, source: dict, observed_at: int | None = None) -> bool:
@@ -114,8 +126,9 @@ class Indexer:
             )
             snapshot_id = cursor.lastrowid
             db.executemany(
-                "INSERT INTO assets VALUES(?,?,?,?,?,?)",
-                [(snapshot_id, a["id"], a["issuer"], a["ticker"], a["decimals"], a["supply"]) for a in state["assets"]],
+                "INSERT INTO assets(snapshot_id,asset_id,issuer,ticker,decimals,supply_atomic,holder_count,treasury_balance_atomic) VALUES(?,?,?,?,?,?,?,?)",
+                [(snapshot_id, a["id"], a["issuer"], a["ticker"], a["decimals"], a["supply"],
+                  a.get("holders"), a.get("treasury_balance")) for a in state["assets"]],
             )
             db.executemany(
                 "INSERT INTO pools VALUES(?,?,?,?,?,?,?)",
@@ -128,9 +141,9 @@ class Indexer:
             snapshot = db.execute("SELECT * FROM snapshots ORDER BY observed_at DESC,id DESC LIMIT 1").fetchone()
             if not snapshot:
                 return None
-            assets = [dict(row) for row in db.execute("SELECT asset_id,issuer,ticker,decimals,supply_atomic FROM assets WHERE snapshot_id=? ORDER BY asset_id", (snapshot["id"],))]
+            assets = [dict(row) for row in db.execute("SELECT asset_id,issuer,ticker,decimals,supply_atomic,holder_count,treasury_balance_atomic FROM assets WHERE snapshot_id=? ORDER BY asset_id", (snapshot["id"],))]
             pools = [dict(row) for row in db.execute("SELECT pool_id,asset_a,asset_b,reserve_a_atomic,reserve_b_atomic,shares_atomic FROM pools WHERE snapshot_id=? ORDER BY pool_id", (snapshot["id"],))]
-            return {**dict(snapshot), "assets": assets, "pools": pools, "coverage": coverage()}
+            return {**dict(snapshot), "assets": assets, "pools": pools, "coverage": coverage(assets)}
 
     def market_history(self, asset_id: str, limit: int = 500) -> list[dict]:
         if not HEX64.fullmatch(asset_id) or asset_id == NATIVE_ID:
@@ -176,10 +189,13 @@ class Indexer:
         return result
 
 
-def coverage() -> dict:
+def coverage(assets: list[dict] | None = None) -> dict:
+    has_holders = bool(assets) and all(asset.get("holder_count") is not None for asset in assets)
+    has_treasury = bool(assets) and all(asset.get("treasury_balance_atomic") is not None for asset in assets)
     return {"prices_xgtx": True, "liquidity_history": True, "candles": True,
-            "usd_price": False, "transaction_volume": False, "holder_count": False,
-            "treasury_activity": False, "note": "Unavailable fields remain null until authoritative daemon event APIs exist."}
+            "usd_price": False, "transaction_volume": False, "holder_count": has_holders,
+            "treasury_balance": has_treasury, "treasury_activity": False,
+            "note": "Unavailable fields remain null until authoritative daemon event APIs exist."}
 
 
 def fetch_json(url: str, timeout: int = 10) -> dict:
@@ -219,8 +235,10 @@ class API(BaseHTTPRequestHandler):
                     params.get("asset_id", [""])[0], int(params.get("limit", ["500"])[0]))})
             elif parsed.path == "/v1/candles":
                 asset_id = params.get("asset_id", [""])[0]
+                latest = self.indexer.latest()
                 self.send_json(200, {"asset_id": asset_id, "quote": "XGTX", "candles": self.indexer.candles(
-                    asset_id, int(params.get("interval", ["300"])[0]), int(params.get("limit", ["288"])[0])), "coverage": coverage()})
+                    asset_id, int(params.get("interval", ["300"])[0]), int(params.get("limit", ["288"])[0])),
+                    "coverage": coverage((latest or {}).get("assets", []))})
             else:
                 self.send_json(404, {"error": "not found"})
         except (ValueError, OverflowError) as error:
