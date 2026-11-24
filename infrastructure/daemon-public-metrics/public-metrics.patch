@@ -1,0 +1,72 @@
+diff --git a/src/rpc/xgtx_rpc_commands.hpp b/src/rpc/xgtx_rpc_commands.hpp
+--- a/src/rpc/xgtx_rpc_commands.hpp
++++ b/src/rpc/xgtx_rpc_commands.hpp
+@@
+-  std::string id,issuer,supply,ticker,balance;std::uint8_t decimals=0;
++  std::string id,issuer,supply,ticker,balance,holders,treasury_balance;std::uint8_t decimals=0;
+@@
+-    KV_SERIALIZE(ticker) KV_SERIALIZE(decimals) KV_SERIALIZE(balance)
++    KV_SERIALIZE(ticker) KV_SERIALIZE(decimals) KV_SERIALIZE(balance)
++    KV_SERIALIZE(holders) KV_SERIALIZE(treasury_balance)
+diff --git a/src/rpc/xgtx_rpc_handlers.inc b/src/rpc/xgtx_rpc_handlers.inc
+--- a/src/rpc/xgtx_rpc_handlers.inc
++++ b/src/rpc/xgtx_rpc_handlers.inc
+@@
+ #include "xgtx_exchange/native_withdraw.hpp"
++#include "xgtx_exchange/public_metrics.hpp"
+@@
+     const auto& cfg=exchange->settings();
++    const auto metrics=xgtx_exchange::public_metrics(snapshot,cfg.treasury);
+@@
+       xgtx_rpc_asset row;row.id=xgtx_rpc_hex(asset->first);row.issuer=xgtx_rpc_hex(asset->second.issuer);row.supply=std::to_string(asset->second.supply);row.ticker=asset->second.ticker;row.decimals=asset->second.decimals;
++      const auto metric=metrics.find(asset->first);if(metric==metrics.end())throw std::runtime_error("Missing public asset metrics");row.holders=std::to_string(metric->second.holders);row.treasury_balance=std::to_string(metric->second.treasury_balance);
+diff --git a/src/xgtx_exchange/public_metrics.hpp b/src/xgtx_exchange/public_metrics.hpp
+new file mode 100644
+--- /dev/null
++++ b/src/xgtx_exchange/public_metrics.hpp
+@@
++#pragma once
++#include "engine.hpp"
++
++namespace xgtx_exchange {
++struct public_asset_metrics { amount holders=0,treasury_balance=0; };
++
++inline std::map<id,public_asset_metrics> public_metrics(const state& snapshot,const id& treasury){
++  std::map<id,public_asset_metrics> result;
++  for(const auto& asset:snapshot.assets)result.emplace(asset.first,public_asset_metrics{});
++  for(const auto& balance:snapshot.balances){
++    auto metric=result.find(balance.first.second);
++    if(metric==result.end())throw std::runtime_error("Balance references unknown asset");
++    if(balance.second){
++      if(metric->second.holders==std::numeric_limits<amount>::max())throw std::overflow_error("Holder count overflow");
++      ++metric->second.holders;
++    }
++    if(balance.first.first==treasury)metric->second.treasury_balance=balance.second;
++  }
++  return result;
++}
++}
+diff --git a/tests/xgtx_exchange/test_public_metrics.cpp b/tests/xgtx_exchange/test_public_metrics.cpp
+new file mode 100644
+--- /dev/null
++++ b/tests/xgtx_exchange/test_public_metrics.cpp
+@@
++#include "xgtx_exchange/public_metrics.hpp"
++#include <iostream>
++
++int main(){
++  using namespace xgtx_exchange;
++  unsigned checks=0;auto check=[&](bool value,const char* message){++checks;if(!value)throw std::runtime_error(message);};
++  id asset{};asset[0]=1;id treasury{};treasury[0]=2;id alice{};alice[0]=3;id bob{};bob[0]=4;
++  state snapshot;snapshot.assets.emplace(asset,asset_info{});
++  snapshot.balances[{treasury,asset}]=50;snapshot.balances[{alice,asset}]=25;snapshot.balances[{bob,asset}]=0;
++  auto metrics=public_metrics(snapshot,treasury);
++  check(metrics.at(asset).holders==2,"positive balances are holders");
++  check(metrics.at(asset).treasury_balance==50,"treasury balance is exact");
++  snapshot.balances[{bob,asset}]=1;metrics=public_metrics(snapshot,treasury);
++  check(metrics.at(asset).holders==3,"new positive balance increments holders");
++  id unknown{};unknown[0]=9;snapshot.balances[{alice,unknown}]=1;
++  bool rejected=false;try{public_metrics(snapshot,treasury);}catch(const std::runtime_error&){rejected=true;}
++  check(rejected,"unknown asset balance is rejected");
++  std::cout<<checks<<" checks passed: public holder and treasury metrics\n";
++}
