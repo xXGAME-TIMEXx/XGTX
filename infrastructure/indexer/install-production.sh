@@ -98,7 +98,20 @@ systemctl daemon-reload
 systemctl enable xgtx-indexer
 systemctl restart xgtx-indexer
 
-curl --fail --silent --show-error http://127.0.0.1:48400/health >/dev/null
+healthy=false
+for _ in {1..20}; do
+  if curl --fail --silent --show-error http://127.0.0.1:48400/health >/dev/null; then
+    healthy=true
+    break
+  fi
+  sleep 1
+done
+if [[ "${healthy}" != true ]]; then
+  systemctl --no-pager --full status xgtx-indexer >&2 || true
+  journalctl -u xgtx-indexer -n 50 --no-pager >&2 || true
+  echo "Indexer did not become healthy within 20 seconds." >&2
+  exit 1
+fi
 if ! nginx -t; then
   echo "nginx validation failed. Backups are in ${backup_root}; nginx was not reloaded." >&2
   exit 1
