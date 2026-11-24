@@ -1,0 +1,15 @@
+[Unit]
+Description=Verify and back up the XGTX historical indexer
+After=xgtx-indexer.service
+Requires=xgtx-indexer.service
+
+[Service]
+Type=oneshot
+User=xgtx-indexer
+Group=xgtx-indexer
+ExecStart=/usr/bin/python3 /opt/xgtx/indexer/xgtx_indexer_maintenance.py
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/backups/xgtx-indexer
