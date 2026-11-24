@@ -30,3 +30,5 @@ python3 -m unittest -v test_indexer.py
 ## Production boundary
 
 Keep the process unprivileged and bind it to loopback behind a TLS reverse proxy. Back up the SQLite database. Monitor `/health`. The public API is read-only and never connects to wallet-RPC, handles recovery words, or signs transactions.
+
+The production installer also enables a daily maintenance timer. It verifies the loopback health response, creates a SQLite online backup with an integrity check, and retains the newest 14 backups under `/var/backups/xgtx-indexer/data`.
