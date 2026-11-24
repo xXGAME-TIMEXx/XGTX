@@ -1,0 +1,22 @@
+[Unit]
+Description=XGTX historical market indexer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=xgtx-indexer
+Group=xgtx-indexer
+WorkingDirectory=/opt/xgtx/indexer
+ExecStart=/usr/bin/python3 /opt/xgtx/indexer/xgtx_indexer.py --database /var/lib/xgtx-indexer/index.sqlite3 --listen 127.0.0.1 --port 48400 --interval 30
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/xgtx-indexer
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target
