@@ -1,0 +1,83 @@
+name: Daemon public metrics candidate
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "infrastructure/daemon-public-metrics/**"
+      - ".github/workflows/daemon-public-metrics.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      SOURCE_SHA256: fa9d5f5f140afbdf09d0418f4aac8cec550243c81456f74f781c7bdf2c70d89b
+      SOURCE_URL: https://github.com/xXGAME-TIMEXx/XGTX/releases/download/v0.18.1.0-xgtx-p16/source.tar.gz
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake git pkg-config ca-certificates python3 \
+            libboost-all-dev libssl-dev libsodium-dev libunbound-dev libzmq3-dev \
+            libhidapi-dev libreadline-dev libunwind-dev libexpat1-dev libusb-1.0-0-dev
+
+      - name: Download and verify canonical source
+        run: |
+          curl --fail --location --retry 3 "$SOURCE_URL" --output source.tar.gz
+          echo "$SOURCE_SHA256  source.tar.gz" | sha256sum --check
+          mkdir source
+          tar -xzf source.tar.gz -C source
+          test -f source/xgtx-source/CMakeLists.txt
+
+      - name: Apply reviewed public metrics patch
+        run: |
+          cd source/xgtx-source
+          patch --batch --forward -p1 < "$GITHUB_WORKSPACE/infrastructure/daemon-public-metrics/public-metrics.patch"
+          test -f src/xgtx_exchange/public_metrics.hpp
+          test -f tests/xgtx_exchange/test_public_metrics.cpp
+
+      - name: Run focused public metrics test
+        run: |
+          cd source/xgtx-source
+          g++ -std=c++17 -Wall -Wextra -Werror -Isrc \
+            tests/xgtx_exchange/test_public_metrics.cpp -o /tmp/xgtx-public-metrics-test
+          /tmp/xgtx-public-metrics-test
+
+      - name: Configure baseline daemon build
+        run: |
+          cmake -S source/xgtx-source -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTS=ON \
+            -DSTATIC=OFF \
+            -DMANUAL_SUBMODULES=ON \
+            -DARCH=x86-64 \
+            -DNO_AES=ON \
+            -DUSE_DEVICE_TREZOR=OFF \
+            -DXGTX_PUBLIC_EXCHANGE_CANDIDATE=ON \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Build daemon
+        run: cmake --build build --target daemon -j2
+
+      - name: Verify candidate binary
+        run: |
+          test -x build/bin/xgtxd
+          build/bin/xgtxd --version
+          sha256sum build/bin/xgtxd | tee xgtxd-public-metrics.SHA256SUMS
+          cp build/bin/xgtxd xgtxd-public-metrics
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xgtxd-public-metrics-ubuntu24-x86_64
+          path: |
+            xgtxd-public-metrics
+            xgtxd-public-metrics.SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14
