@@ -1,0 +1,159 @@
+name: Deploy daemon public metrics
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/deploy-daemon-public-metrics.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: xgtx-production-daemon
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      DEPLOY_HOST: 5.78.219.248
+      CANDIDATE_RUN_ID: "45331229498"
+      CANDIDATE_SHA256: 3264dbf5e71141dbdaa8fa7c42ee1c5df45117458b96529d7c8869fd0988812b
+    steps:
+      - name: Download verified candidate
+        uses: actions/download-artifact@v4
+        with:
+          name: xgtxd-public-metrics-ubuntu24-x86_64
+          path: candidate
+          github-token: ${{ github.token }}
+          run-id: ${{ env.CANDIDATE_RUN_ID }}
+
+      - name: Verify candidate checksum
+        run: |
+          set -euo pipefail
+          echo "$CANDIDATE_SHA256  candidate/xgtxd-public-metrics" | sha256sum --check
+          chmod 0755 candidate/xgtxd-public-metrics
+
+      - name: Configure temporary SSH access
+        env:
+          XGTX_DEPLOY_KEY: ${{ secrets.XGTX_DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$XGTX_DEPLOY_KEY"
+          install -d -m 0700 ~/.ssh
+          printf '%s\n' "$XGTX_DEPLOY_KEY" > ~/.ssh/xgtx-github-deploy
+          chmod 0600 ~/.ssh/xgtx-github-deploy
+          ssh-keyscan -T 10 -H "$DEPLOY_HOST" > ~/.ssh/known_hosts
+          test -s ~/.ssh/known_hosts
+
+      - name: Preflight production host
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/xgtx-github-deploy root@"$DEPLOY_HOST" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+          systemctl is-active --quiet xgtxd.service
+          systemctl is-active --quiet xgtx-indexer.service
+          command -v sha256sum >/dev/null
+          command -v systemctl >/dev/null
+          command -v ss >/dev/null
+          unit_value="$(systemctl show -p ExecStart --value xgtxd.service)"
+          binary="$(printf '%s\n' "$unit_value" | sed -n 's/.*path=\([^ ;}]*\).*/\1/p')"
+          test -n "$binary"
+          test -x "$binary"
+          case "$binary" in /*) ;; *) exit 1 ;; esac
+          printf 'daemon_binary=%s\n' "$binary"
+          "$binary" --version
+          REMOTE
+
+      - name: Upload candidate
+        run: |
+          set -euo pipefail
+          scp -i ~/.ssh/xgtx-github-deploy candidate/xgtxd-public-metrics root@"$DEPLOY_HOST":/tmp/xgtxd-public-metrics.new
+
+      - name: Install with automatic rollback
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/xgtx-github-deploy root@"$DEPLOY_HOST" 'CANDIDATE_SHA256='"$CANDIDATE_SHA256"' bash -se' <<'REMOTE'
+          set -Eeuo pipefail
+          candidate=/tmp/xgtxd-public-metrics.new
+          unit=xgtxd.service
+          test "$(sha256sum "$candidate" | awk '{print $1}')" = "$CANDIDATE_SHA256"
+          chmod 0755 "$candidate"
+          if ldd "$candidate" | grep -q 'not found'; then
+            ldd "$candidate"
+            exit 1
+          fi
+          unit_value="$(systemctl show -p ExecStart --value "$unit")"
+          binary="$(printf '%s\n' "$unit_value" | sed -n 's/.*path=\([^ ;}]*\).*/\1/p')"
+          test -x "$binary"
+          current_version="$("$binary" --version 2>&1)"
+          candidate_version="$("$candidate" --version 2>&1)"
+          test "$current_version" = "$candidate_version"
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          backup="/var/backups/xgtxd-public-metrics/$stamp"
+          mkdir -p "$backup"
+          cp -a "$binary" "$backup/xgtxd"
+          systemctl cat "$unit" > "$backup/xgtxd.service.txt"
+          sha256sum "$backup/xgtxd" > "$backup/xgtxd.SHA256SUMS"
+          rollback() {
+            install -m 0755 "$backup/xgtxd" "$binary"
+            systemctl restart "$unit"
+            systemctl is-active --quiet "$unit"
+          }
+          trap rollback ERR
+          install -m 0755 "$candidate" "$binary"
+          systemctl restart "$unit"
+          for attempt in $(seq 1 30); do
+            if systemctl is-active --quiet "$unit" && ss -ltn | grep -q '127.0.0.1:48081'; then
+              break
+            fi
+            sleep 2
+          done
+          systemctl is-active --quiet "$unit"
+          ss -ltn | grep -q '127.0.0.1:48081'
+          sleep 8
+          systemctl is-active --quiet "$unit"
+          journalctl -u "$unit" --since '-2 minutes' --no-pager | tail -n 80
+          trap - ERR
+          rm -f "$candidate"
+          printf 'deployment_backup=%s\n' "$backup"
+          printf 'installed_sha256=%s\n' "$(sha256sum "$binary" | awk '{print $1}')"
+          REMOTE
+
+      - name: Verify public services
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            health="$(curl --fail --silent --show-error https://xgtxchain.com/indexer/health || true)"
+            state="$(curl --fail --silent --show-error https://xgtxchain.com/dex/api/state || true)"
+            if python3 - "$health" "$state" <<'PY'
+          import json,sys
+          try:
+              health=json.loads(sys.argv[1])
+              state=json.loads(sys.argv[2])
+              assert health.get("ok") is True
+              assert state.get("synchronized") is True
+              assert state.get("assets")
+              assert all("holders" in asset and "treasury_balance" in asset for asset in state["assets"])
+          except Exception:
+              raise SystemExit(1)
+          PY
+            then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Public metrics did not become healthy in time." >&2
+          exit 1
+
+      - name: Revoke temporary deployment key
+        if: always()
+        run: |
+          if test -s ~/.ssh/xgtx-github-deploy; then
+            ssh -i ~/.ssh/xgtx-github-deploy root@"$DEPLOY_HOST" \
+              "sed -i '/xgtx-github-actions/d' /root/.ssh/authorized_keys" || true
+          fi
+          rm -f ~/.ssh/xgtx-github-deploy
