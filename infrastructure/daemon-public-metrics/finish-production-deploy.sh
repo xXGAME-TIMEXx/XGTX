@@ -6,6 +6,8 @@ CANDIDATE=/tmp/xgtxd-public-metrics.new
 UNIT=xgtxd.service
 MARKETS_UNIT=xgtx-native-markets.service
 MARKETS=/opt/xgtx-native-dex-web/markets.py
+INDEXER=/opt/xgtx/indexer/xgtx_indexer.py
+INDEXER_UNIT=xgtx-indexer.service
 DROPIN=/etc/systemd/system/xgtxd.service.d/50-public-metrics-libs.conf
 TEMP_KEY_MARKER=xgtx-github-actions
 
@@ -25,8 +27,9 @@ BINARY="$(printf '%s\n' "${unit_value}" | sed -n 's/.*path=\([^ ;}]*\).*/\1/p')"
 [[ -n "${BINARY}" && -x "${BINARY}" && "${BINARY}" = /* ]]
 systemctl is-active --quiet "${UNIT}"
 systemctl is-active --quiet "${MARKETS_UNIT}"
-systemctl is-active --quiet xgtx-indexer.service
+systemctl is-active --quiet "${INDEXER_UNIT}"
 [[ -f "${MARKETS}" ]]
+[[ -f "${INDEXER}" ]]
 [[ -x "${CANDIDATE}" ]]
 [[ "$(sha256sum "${CANDIDATE}" | awk '{print $1}')" = "${EXPECTED_SHA256}" ]]
 
@@ -41,6 +44,7 @@ BACKUP="/var/backups/xgtxd-public-metrics/${stamp}"
 mkdir -p "${BACKUP}"
 cp -a "${BINARY}" "${BACKUP}/xgtxd"
 cp -a "${MARKETS}" "${BACKUP}/markets.py"
+cp -a "${INDEXER}" "${BACKUP}/xgtx_indexer.py"
 systemctl cat "${UNIT}" > "${BACKUP}/xgtxd.service.txt"
 sha256sum "${BACKUP}/xgtxd" > "${BACKUP}/xgtxd.SHA256SUMS"
 dropin_existed=0
@@ -56,6 +60,7 @@ rollback() {
   echo "Deployment failed; restoring ${BACKUP}" >&2
   install -m 0755 "${BACKUP}/xgtxd" "${BINARY}"
   install -m 0644 "${BACKUP}/markets.py" "${MARKETS}"
+  install -m 0644 "${BACKUP}/xgtx_indexer.py" "${INDEXER}"
   if [[ "${dropin_existed}" -eq 1 ]]; then
     install -m 0644 "${BACKUP}/50-public-metrics-libs.conf" "${DROPIN}"
   else
@@ -70,6 +75,8 @@ rollback() {
   systemctl is-active --quiet "${UNIT}"
   systemctl restart "${MARKETS_UNIT}"
   systemctl is-active --quiet "${MARKETS_UNIT}"
+  systemctl restart "${INDEXER_UNIT}"
+  systemctl is-active --quiet "${INDEXER_UNIT}"
   revoke_temp_key
   rm -f /run/xgtx-public-metrics-rollback
   exit "${rc}"
@@ -93,6 +100,37 @@ if text.count(old) != 1:
 path.write_text(text.replace(old,new))
 PY
 python3 -m py_compile "${MARKETS}"
+
+# Existing snapshots are immutable market-history points, but a daemon upgrade
+# may add newly authoritative optional fields for the same height and tip.
+# Enrich only those optional columns and refuse any differing asset set.
+python3 - "${INDEXER}" <<'PY'
+from pathlib import Path
+import sys
+path=Path(sys.argv[1])
+text=path.read_text()
+old='''            existing = db.execute("SELECT id FROM snapshots WHERE height=? AND tip=?", (state["height"], state["tip"])).fetchone()
+            if existing:
+                return False
+            cursor = db.execute('''
+new='''            existing = db.execute("SELECT id FROM snapshots WHERE height=? AND tip=?", (state["height"], state["tip"])).fetchone()
+            if existing:
+                snapshot_id = existing["id"]
+                stored = {row["asset_id"] for row in db.execute("SELECT asset_id FROM assets WHERE snapshot_id=?", (snapshot_id,))}
+                incoming = {asset["id"] for asset in state["assets"]}
+                if stored != incoming:
+                    raise ValueError("duplicate snapshot asset set differs")
+                db.executemany(
+                    "UPDATE assets SET holder_count=COALESCE(?,holder_count),treasury_balance_atomic=COALESCE(?,treasury_balance_atomic) WHERE snapshot_id=? AND asset_id=?",
+                    [(asset.get("holders"), asset.get("treasury_balance"), snapshot_id, asset["id"]) for asset in state["assets"]],
+                )
+                return False
+            cursor = db.execute('''
+if text.count(old) != 1:
+    raise SystemExit("Refusing to patch unexpected xgtx_indexer.py")
+path.write_text(text.replace(old,new))
+PY
+python3 -m py_compile "${INDEXER}"
 
 # The production service normally prefers bundled runtime libraries. The
 # candidate is built and tested against Ubuntu 24.04 system libraries. Retain
@@ -144,6 +182,9 @@ PY
 done
 [[ "${public_ok}" -eq 1 ]]
 
+systemctl restart "${INDEXER_UNIT}"
+systemctl is-active --quiet "${INDEXER_UNIT}"
+
 coverage_ok=0
 for _ in $(seq 1 36); do
   if summary="$(curl --fail --silent --show-error https://xgtxchain.com/indexer/v1/summary 2>/dev/null)" &&
@@ -152,7 +193,7 @@ import json,sys
 summary=json.loads(sys.argv[1])
 coverage=summary.get("coverage") or {}
 assert coverage.get("holder_count") is True
-assert coverage.get("treasury_activity") is True
+assert coverage.get("treasury_balance") is True
 PY
   then
     coverage_ok=1
@@ -168,4 +209,5 @@ revoke_temp_key
 echo "PASS: XGTX daemon public metrics deployed"
 echo "Backup: ${BACKUP}"
 echo "Installed SHA256: ${EXPECTED_SHA256}"
+echo "Indexer SHA256: $(sha256sum "${INDEXER}" | awk '{print $1}')"
 echo "Gateway SHA256: $(sha256sum "${MARKETS}" | awk '{print $1}')"
