@@ -1,5 +1,5 @@
 name: Encrypted daemon startup diagnostics
-# approved retry after SSH authorization
+# approved latest-240-journal retry after SSH authorization
 
 on:
   workflow_dispatch:
@@ -81,7 +81,7 @@ jobs:
           echo SERVICE_DEFINITION
           systemctl cat xgtxd.service
           echo FAILURE_WINDOW
-          journalctl -u xgtxd.service --since '2026-11-27 08:31:30 UTC' --until '2026-11-27 08:34:30 UTC' --no-pager
+          journalctl -u xgtxd.service -n 240 --no-pager
           REMOTE
             openssl cms -encrypt -binary -aes256 -outform DER \
               -in /dev/stdin -out xgtx-daemon-diagnostics.p7m diagnostic-cert.pem
