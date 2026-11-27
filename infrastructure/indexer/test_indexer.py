@@ -40,7 +40,7 @@ class IndexerTests(unittest.TestCase):
         self.assertFalse(self.indexer.record(enriched, 1002))
         latest = self.indexer.latest()
         self.assertTrue(latest["coverage"]["holder_count"])
-        self.assertTrue(latest["coverage"]["treasury_activity"])
+        self.assertTrue(latest["coverage"]["treasury_balance"])
         self.assertEqual(latest["assets"][1]["holder_count"], "2")
 
     def test_history_and_candles_use_exact_reserve_ratio(self):
