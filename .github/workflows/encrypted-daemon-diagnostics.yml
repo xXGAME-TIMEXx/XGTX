@@ -1,0 +1,100 @@
+name: Encrypted daemon startup diagnostics
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/encrypted-daemon-diagnostics.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      DEPLOY_HOST: 5.78.219.248
+    steps:
+      - name: Configure temporary SSH access
+        env:
+          XGTX_DEPLOY_KEY: ${{ secrets.XGTX_DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$XGTX_DEPLOY_KEY"
+          install -d -m 0700 ~/.ssh
+          printf '%s\n' "$XGTX_DEPLOY_KEY" > ~/.ssh/xgtx-github-deploy
+          chmod 0600 ~/.ssh/xgtx-github-deploy
+          ssh-keyscan -T 10 -H "$DEPLOY_HOST" > ~/.ssh/known_hosts
+          test -s ~/.ssh/known_hosts
+
+      - name: Capture and encrypt diagnostics
+        run: |
+          set -euo pipefail
+          cat > diagnostic-cert.pem <<'CERT'
+          -----BEGIN CERTIFICATE-----
+          MIIEKzCCApOgAwIBAgIUWzQt6Ej1cga1iU2ak7b5rvxggngwDQYJKoZIhvcNAQEL
+          BQAwJTEjMCEGA1UEAwwaWEdUWCBlcGhlbWVyYWwgZGlhZ25vc3RpY3MwHhcNMjYx
+          MTI3MDgzNTU2WhcNMjYxMTI5MDgzNTU2WjAlMSMwIQYDVQQDDBpYR1RYIGVwaGVt
+          ZXJhbCBkaWFnbm9zdGljczCCAaIwDQYJKoZIhvcNAQEBBQADggGPADCCAYoCggGB
+          ALP2yoA6bNMl+ke0d/CA1APeY0899G3OcuiaEsGHvpES1WwLS73zIclCWv3U2kAA
+          ct8hrVDM53I+lIMQt+XFiqs8WN+he8HhLNgeSNCNCmJKzLDy4Lqh58+K29MgnP+k
+          xMJLnim8GmkauriuTlUJ4mdNFxY96e/DAi+wNPTZA3JIj/kq+ARFv1jiz1+Hhvvx
+          5/lntIG0ZkJgE2WWE4RVbGRq/9ZwUCx/p7Qz140tLSc3pZIix7m5Lsa6pq97njE1
+          Zpd97YclAMpjjNAMj9dPSnaMrCRQ7+6yJLe5WpbN9xzLQY6iRkIdDULencCXqek/
+          BJjcMKNqaL+RF/Iby7cWbginaP+vdAG5wUSeSATZAwM/wQvYH+/o38o6aFZXEEE/
+          Pr/2sp6CYyuPus0Pn/DZXsB+iC4hav+KY63jNOcom2Gvo2VkOLQIoMw3e0rT1z02
+          LsaxI4ALAyTLEJ+uYtOR1Xgnr6pD39sj+w/hQEXznFStg0IcdhoMOcHIauNoCMnD
+          MQIDAQABo1MwUTAdBgNVHQ4EFgQUvGffYtFshojmnqvFX9ft2Onk6MYwHwYDVR0j
+          BBgwFoAUvGffYtFshojmnqvFX9ft2Onk6MYwDwYDVR0TAQH/BAUwAwEB/zANBgkq
+          hkiG9w0BAQsFAAOCAYEAEKxfpi7Gm/tekkpu3xAfcH2Wls9Ws9c5eYOdCtSkjMJf
+          Tiw2371QTZ+5ps7hQ+eKFjSH0HUJ00lK2DgLs5rSCQhZ8rwpQq8VmQwDxJaSrBi2
+          1M0ATIUa2LSq5u+xZLkWY3lCW52SoWAr0xFvt9t3RNjgRFEqdwiZngpvLzfmax+9
+          4Z+RZzVF3cJ3q0rJqPS/HLJQv79S3vWTuQlovn85XWMbN3tuaYln5DxlYOBsKCYu
+          V30PHtu+5XI87MFn82+V1i108cAW1nF79rATpPEOIXdZs3fnRerb4+yxkjR93dgK
+          H99s2qTo/Hbl3A6Ad1SvcVoAijglpgwZlrU7ZpooGEdYfLo4FyaxPgZMM7nD7GXh
+          e33rXqsD4Bey0R06IGXebRPpYbvC4ErI98UpVchwiS0qmNlgBVdjkUZRr/aBN6NX
+          VyPohAlk3XvVDUg4Q3PzZ0UoXzkCejQf/eAkPuahD6rZwPMfFZCBMHoftgN2fu70
+          rO+PGTTa8840OFPNvbdL
+          -----END CERTIFICATE-----
+          CERT
+          ssh -i ~/.ssh/xgtx-github-deploy root@"$DEPLOY_HOST" 'bash -se' <<'REMOTE' |
+          set -euo pipefail
+          echo SERVICE_STATE
+          systemctl is-active xgtxd.service
+          systemctl show xgtxd.service -p Result -p ExecMainCode -p ExecMainStatus -p NRestarts --no-pager
+          echo CURRENT_DAEMON
+          unit_value="$(systemctl show -p ExecStart --value xgtxd.service)"
+          binary="$(printf '%s\n' "$unit_value" | sed -n 's/.*path=\([^ ;}]*\).*/\1/p')"
+          test -x "$binary"
+          "$binary" --version
+          sha256sum "$binary"
+          echo CANDIDATE_FILE
+          if test -x /tmp/xgtxd-public-metrics.new; then
+            /tmp/xgtxd-public-metrics.new --version
+            sha256sum /tmp/xgtxd-public-metrics.new
+            ldd /tmp/xgtxd-public-metrics.new
+          else
+            echo absent
+          fi
+          echo SERVICE_DEFINITION
+          systemctl cat xgtxd.service
+          echo FAILURE_WINDOW
+          journalctl -u xgtxd.service --since '2026-11-27 08:31:30 UTC' --until '2026-11-27 08:34:30 UTC' --no-pager
+          REMOTE
+            openssl cms -encrypt -binary -aes256 -outform DER \
+              -in /dev/stdin -out xgtx-daemon-diagnostics.p7m diagnostic-cert.pem
+          test -s xgtx-daemon-diagnostics.p7m
+          rm -f diagnostic-cert.pem
+
+      - name: Upload encrypted diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: xgtx-daemon-diagnostics-encrypted
+          path: xgtx-daemon-diagnostics.p7m
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Remove runner key copy
+        if: always()
+        run: rm -f ~/.ssh/xgtx-github-deploy
