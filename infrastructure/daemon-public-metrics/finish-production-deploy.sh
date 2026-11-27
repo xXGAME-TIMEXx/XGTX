@@ -101,36 +101,17 @@ path.write_text(text.replace(old,new))
 PY
 python3 -m py_compile "${MARKETS}"
 
-# Existing snapshots are immutable market-history points, but a daemon upgrade
-# may add newly authoritative optional fields for the same height and tip.
-# Enrich only those optional columns and refuse any differing asset set.
-python3 - "${INDEXER}" <<'PY'
-from pathlib import Path
-import sys
-path=Path(sys.argv[1])
-text=path.read_text()
-old='''            existing = db.execute("SELECT id FROM snapshots WHERE height=? AND tip=?", (state["height"], state["tip"])).fetchone()
-            if existing:
-                return False
-            cursor = db.execute('''
-new='''            existing = db.execute("SELECT id FROM snapshots WHERE height=? AND tip=?", (state["height"], state["tip"])).fetchone()
-            if existing:
-                snapshot_id = existing["id"]
-                stored = {row["asset_id"] for row in db.execute("SELECT asset_id FROM assets WHERE snapshot_id=?", (snapshot_id,))}
-                incoming = {asset["id"] for asset in state["assets"]}
-                if stored != incoming:
-                    raise ValueError("duplicate snapshot asset set differs")
-                db.executemany(
-                    "UPDATE assets SET holder_count=COALESCE(?,holder_count),treasury_balance_atomic=COALESCE(?,treasury_balance_atomic) WHERE snapshot_id=? AND asset_id=?",
-                    [(asset.get("holders"), asset.get("treasury_balance"), snapshot_id, asset["id"]) for asset in state["assets"]],
-                )
-                return False
-            cursor = db.execute('''
-if text.count(old) != 1:
-    raise SystemExit("Refusing to patch unexpected xgtx_indexer.py")
-path.write_text(text.replace(old,new))
-PY
-python3 -m py_compile "${INDEXER}"
+# Install the immutable, tested indexer revision. Production previously ran an
+# older serializer that could not expose treasury-balance coverage.
+INDEXER_REF=d0aa3865809b37503b98c1e1e5900419c50f4429
+INDEXER_NEW=/tmp/xgtx_indexer.public-metrics.py
+curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+  "https://raw.githubusercontent.com/xXGAME-TIMEXx/XGTX/${INDEXER_REF}/infrastructure/indexer/xgtx_indexer.py" \
+  -o "${INDEXER_NEW}"
+grep -q 'treasury_balance.*has_treasury' "${INDEXER_NEW}"
+grep -q 'duplicate snapshot asset set differs' "${INDEXER_NEW}"
+python3 -m py_compile "${INDEXER_NEW}"
+install -m 0644 "${INDEXER_NEW}" "${INDEXER}"
 
 # The production service normally prefers bundled runtime libraries. The
 # candidate is built and tested against Ubuntu 24.04 system libraries. Retain
@@ -204,7 +185,7 @@ done
 [[ "${coverage_ok}" -eq 1 ]]
 
 trap - ERR INT TERM
-rm -f "${CANDIDATE}" /run/xgtx-public-metrics-rollback
+rm -f "${CANDIDATE}" "${INDEXER_NEW}" /run/xgtx-public-metrics-rollback
 revoke_temp_key
 echo "PASS: XGTX daemon public metrics deployed"
 echo "Backup: ${BACKUP}"
