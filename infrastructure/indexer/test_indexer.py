@@ -34,6 +34,14 @@ class IndexerTests(unittest.TestCase):
         self.assertEqual(latest["height"], 100)
         self.assertEqual(latest["assets"][1]["supply_atomic"], "9000000")
         self.assertFalse(latest["coverage"]["holder_count"])
+        enriched = state()
+        for asset in enriched["assets"]:
+            asset.update({"holders": "2", "treasury_balance": "50"})
+        self.assertFalse(self.indexer.record(enriched, 1002))
+        latest = self.indexer.latest()
+        self.assertTrue(latest["coverage"]["holder_count"])
+        self.assertTrue(latest["coverage"]["treasury_activity"])
+        self.assertEqual(latest["assets"][1]["holder_count"], "2")
 
     def test_history_and_candles_use_exact_reserve_ratio(self):
         self.indexer.record(state(), 1000)
