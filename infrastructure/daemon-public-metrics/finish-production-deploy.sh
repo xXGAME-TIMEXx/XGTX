@@ -78,7 +78,7 @@ rollback() {
   systemctl restart "${INDEXER_UNIT}"
   systemctl is-active --quiet "${INDEXER_UNIT}"
   revoke_temp_key
-  rm -f /run/xgtx-public-metrics-rollback
+  rm -f "${INDEXER_NEW:-}" /run/xgtx-public-metrics-rollback
   exit "${rc}"
 }
 trap 'rollback $?' ERR
@@ -108,7 +108,7 @@ INDEXER_NEW=/tmp/xgtx_indexer.public-metrics.py
 curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
   "https://raw.githubusercontent.com/xXGAME-TIMEXx/XGTX/${INDEXER_REF}/infrastructure/indexer/xgtx_indexer.py" \
   -o "${INDEXER_NEW}"
-grep -q 'treasury_balance.*has_treasury' "${INDEXER_NEW}"
+grep -q 'has_treasury.*treasury_balance_atomic' "${INDEXER_NEW}"
 grep -q 'duplicate snapshot asset set differs' "${INDEXER_NEW}"
 python3 -m py_compile "${INDEXER_NEW}"
 install -m 0644 "${INDEXER_NEW}" "${INDEXER}"
