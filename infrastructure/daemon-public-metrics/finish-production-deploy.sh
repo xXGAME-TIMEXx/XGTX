@@ -4,6 +4,8 @@ set -Eeuo pipefail
 EXPECTED_SHA256=3264dbf5e71141dbdaa8fa7c42ee1c5df45117458b96529d7c8869fd0988812b
 CANDIDATE=/tmp/xgtxd-public-metrics.new
 UNIT=xgtxd.service
+MARKETS_UNIT=xgtx-native-markets.service
+MARKETS=/opt/xgtx-native-dex-web/markets.py
 DROPIN=/etc/systemd/system/xgtxd.service.d/50-public-metrics-libs.conf
 TEMP_KEY_MARKER=xgtx-github-actions
 
@@ -22,7 +24,9 @@ unit_value="$(systemctl show -p ExecStart --value "${UNIT}")"
 BINARY="$(printf '%s\n' "${unit_value}" | sed -n 's/.*path=\([^ ;}]*\).*/\1/p')"
 [[ -n "${BINARY}" && -x "${BINARY}" && "${BINARY}" = /* ]]
 systemctl is-active --quiet "${UNIT}"
+systemctl is-active --quiet "${MARKETS_UNIT}"
 systemctl is-active --quiet xgtx-indexer.service
+[[ -f "${MARKETS}" ]]
 [[ -x "${CANDIDATE}" ]]
 [[ "$(sha256sum "${CANDIDATE}" | awk '{print $1}')" = "${EXPECTED_SHA256}" ]]
 
@@ -36,6 +40,7 @@ stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 BACKUP="/var/backups/xgtxd-public-metrics/${stamp}"
 mkdir -p "${BACKUP}"
 cp -a "${BINARY}" "${BACKUP}/xgtxd"
+cp -a "${MARKETS}" "${BACKUP}/markets.py"
 systemctl cat "${UNIT}" > "${BACKUP}/xgtxd.service.txt"
 sha256sum "${BACKUP}/xgtxd" > "${BACKUP}/xgtxd.SHA256SUMS"
 dropin_existed=0
@@ -50,6 +55,7 @@ rollback() {
   set +e
   echo "Deployment failed; restoring ${BACKUP}" >&2
   install -m 0755 "${BACKUP}/xgtxd" "${BINARY}"
+  install -m 0644 "${BACKUP}/markets.py" "${MARKETS}"
   if [[ "${dropin_existed}" -eq 1 ]]; then
     install -m 0644 "${BACKUP}/50-public-metrics-libs.conf" "${DROPIN}"
   else
@@ -62,6 +68,8 @@ rollback() {
     sleep 2
   done
   systemctl is-active --quiet "${UNIT}"
+  systemctl restart "${MARKETS_UNIT}"
+  systemctl is-active --quiet "${MARKETS_UNIT}"
   revoke_temp_key
   rm -f /run/xgtx-public-metrics-rollback
   exit "${rc}"
@@ -70,6 +78,21 @@ trap 'rollback $?' ERR
 trap 'rollback 130' INT TERM
 
 printf '%s\n%s\n' "${BACKUP}" "${BINARY}" > /run/xgtx-public-metrics-rollback
+
+# Preserve the gateway's strict allowlist while adding the two audited,
+# non-wallet public metrics emitted by the candidate daemon.
+python3 - "${MARKETS}" <<'PY'
+from pathlib import Path
+import sys
+path=Path(sys.argv[1])
+text=path.read_text()
+old="            assets.append(dict(id=ident(row['id']),issuer=ident(row['issuer']),ticker=row['ticker'],decimals=row['decimals'],supply=units(row['supply'])))"
+new="            assets.append(dict(id=ident(row['id']),issuer=ident(row['issuer']),ticker=row['ticker'],decimals=row['decimals'],supply=units(row['supply']),holders=units(row['holders']),treasury_balance=units(row['treasury_balance'])))"
+if text.count(old) != 1:
+    raise SystemExit("Refusing to patch unexpected markets.py")
+path.write_text(text.replace(old,new))
+PY
+python3 -m py_compile "${MARKETS}"
 
 # The production service normally prefers bundled runtime libraries. The
 # candidate is built and tested against Ubuntu 24.04 system libraries. Retain
@@ -98,6 +121,8 @@ ss -ltn | grep -q '127.0.0.1:48081'
 [[ "$(sha256sum "${BINARY}" | awk '{print $1}')" = "${EXPECTED_SHA256}" ]]
 sleep 8
 systemctl is-active --quiet "${UNIT}"
+systemctl restart "${MARKETS_UNIT}"
+systemctl is-active --quiet "${MARKETS_UNIT}"
 
 public_ok=0
 for _ in $(seq 1 60); do
@@ -143,3 +168,4 @@ revoke_temp_key
 echo "PASS: XGTX daemon public metrics deployed"
 echo "Backup: ${BACKUP}"
 echo "Installed SHA256: ${EXPECTED_SHA256}"
+echo "Gateway SHA256: $(sha256sum "${MARKETS}" | awk '{print $1}')"
