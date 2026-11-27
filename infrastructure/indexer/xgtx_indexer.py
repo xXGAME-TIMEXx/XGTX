@@ -118,6 +118,15 @@ class Indexer:
         with self.connect() as db:
             existing = db.execute("SELECT id FROM snapshots WHERE height=? AND tip=?", (state["height"], state["tip"])).fetchone()
             if existing:
+                snapshot_id = existing["id"]
+                stored = {row["asset_id"] for row in db.execute("SELECT asset_id FROM assets WHERE snapshot_id=?", (snapshot_id,))}
+                incoming = {asset["id"] for asset in state["assets"]}
+                if stored != incoming:
+                    raise ValueError("duplicate snapshot asset set differs")
+                db.executemany(
+                    "UPDATE assets SET holder_count=COALESCE(?,holder_count),treasury_balance_atomic=COALESCE(?,treasury_balance_atomic) WHERE snapshot_id=? AND asset_id=?",
+                    [(asset.get("holders"), asset.get("treasury_balance"), snapshot_id, asset["id"]) for asset in state["assets"]],
+                )
                 return False
             cursor = db.execute(
                 "INSERT INTO snapshots(observed_at,chain,height,tip,synchronized,peers,lp_fee_bps,protocol_fee_bps) VALUES(?,?,?,?,?,?,?,?)",
