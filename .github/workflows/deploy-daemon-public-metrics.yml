@@ -91,17 +91,22 @@ jobs:
           test -x "$binary"
           current_version="$("$binary" --version 2>&1)"
           candidate_version="$("$candidate" --version 2>&1)"
-          test "$current_version" = "$candidate_version"
+          current_base="$(printf '%s\\n' "$current_version" | grep -oE 'v[0-9]+(\\.[0-9]+){3}' | head -n1)"
+          candidate_base="$(printf '%s\\n' "$candidate_version" | grep -oE 'v[0-9]+(\\.[0-9]+){3}' | head -n1)"
+          test -n "$current_base"
+          test "$current_base" = "$candidate_base"
           stamp="$(date -u +%Y%m%dT%H%M%SZ)"
           backup="/var/backups/xgtxd-public-metrics/$stamp"
           mkdir -p "$backup"
           cp -a "$binary" "$backup/xgtxd"
           systemctl cat "$unit" > "$backup/xgtxd.service.txt"
           sha256sum "$backup/xgtxd" > "$backup/xgtxd.SHA256SUMS"
+          printf '%s\\n%s\\n' "$backup" "$binary" > /run/xgtx-public-metrics-rollback
           rollback() {
             install -m 0755 "$backup/xgtxd" "$binary"
             systemctl restart "$unit"
             systemctl is-active --quiet "$unit"
+            rm -f /run/xgtx-public-metrics-rollback
           }
           trap rollback ERR
           install -m 0755 "$candidate" "$binary"
@@ -148,6 +153,30 @@ jobs:
           done
           echo "Public metrics did not become healthy in time." >&2
           exit 1
+
+      - name: Finalize successful deployment
+        if: success()
+        run: |
+          ssh -i ~/.ssh/xgtx-github-deploy root@"$DEPLOY_HOST" \
+            "rm -f /run/xgtx-public-metrics-rollback"
+
+      - name: Roll back failed public verification
+        if: failure()
+        run: |
+          ssh -i ~/.ssh/xgtx-github-deploy root@"$DEPLOY_HOST" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+          marker=/run/xgtx-public-metrics-rollback
+          if test -s "$marker"; then
+            backup="$(sed -n '1p' "$marker")"
+            binary="$(sed -n '2p' "$marker")"
+            test -x "$backup/xgtxd"
+            case "$binary" in /*) ;; *) exit 1 ;; esac
+            install -m 0755 "$backup/xgtxd" "$binary"
+            systemctl restart xgtxd.service
+            systemctl is-active --quiet xgtxd.service
+            rm -f "$marker"
+          fi
+          REMOTE
 
       - name: Revoke temporary deployment key
         if: always()
